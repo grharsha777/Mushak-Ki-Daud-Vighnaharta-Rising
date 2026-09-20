@@ -1,0 +1,44 @@
+{
+  "biomes": {
+    "himalaya": {
+      "biome": "himalaya",
+      "baseSpeed": 10,
+      "speedRampPerSecond": 0.04,
+      "obstacleSpawnInterval": 2.5,
+      "obstacleSpawnTable": [
+        { "type": "rock",      "weight": 0.5, "lanes": [0, 1, 2] },
+        { "type": "fireBurst", "weight": 0.3, "lanes": [0, 1, 2] },
+        { "type": "iceBlock",  "weight": 0.2, "lanes": [0, 1, 2] }
+      ],
+      "collectibleSpawnTable": [
+        { "type": "modak", "weight": 0.7, "value": 10 },
+        { "type": "ladoo", "weight": 0.3, "value": 15 }
+      ]
+    },
+    "jungle": {
+      "biome": "jungle",
+      "baseSpeed": 14,
+      "speedRampPerSecond": 0.04,
+      "obstacleSpawnInterval": 2.8,
+      "obstacleSpawnTable": [
+        { "type": "fireBurst",         "weight": 0.40, "lanes": [0, 1, 2] },
+        { "type": "overheadBarricade", "weight": 0.35, "lanes": [0, 1, 2] },
+        { "type": "spikedBarricade",   "weight": 0.25, "lanes": [0, 1, 2] }
+      ],
+      "collectibleSpawnTable": [
+        { "type": "modak", "weight": 0.65, "value": 10 },
+        { "type": "ladoo", "weight": 0.35, "value": 15 }
+      ]
+    }
+  },
+  "laneSplitDistance": 400,
+  "laneSplitDuration": 200,
+  "trainSequenceDistance": 700,
+  "trainSequenceDuration": 200,
+  "bossTriggerDistance": 1000,
+  "difficultyModifiers": {
+    "easy":   { "speedMult": 0.7, "obstacleMult": 0.6, "spawnIntervalMult": 1.5 },
+    "normal": { "speedMult": 1.0, "obstacleMult": 1.0, "spawnIntervalMult": 1.0 },
+    "hard":   { "speedMult": 1.4, "obstacleMult": 1.5, "spawnIntervalMult": 0.65 }
+  }
+}

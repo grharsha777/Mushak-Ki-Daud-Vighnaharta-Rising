@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Mushak Ki Daud: Vighnaharta Rising — A Ganesh Chaturthi 3D lane runner. Guide Mushak to Sri Ganapathi!" />
+  <title>Mushak Ki Daud 🐭 — Vighnaharta Rising</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐭</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── RESET ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #0D0B1E; font-family: 'Poppins', sans-serif;
+      -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+
+    /* ─── CANVAS ────────────────────────────────────────────────── */
+    #game-canvas {
+      position: fixed; inset: 0;
+      width: 100vw; height: 100vh;
+      display: block;
+    }
+
+    /* ─── SCREEN SYSTEM ─────────────────────────────────────────── */
+    /* All screens use display:none by default — JS manages show/hide */
+    .screen {
+      position: fixed; inset: 0;
+      display: none; /* JS sets to flex when active */
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      opacity: 0;
+      z-index: 100;
+    }
+
+    /* ─── DIVINE OVERLAYS ───────────────────────────────────────── */
+    #divine-light-overlay {
+      position: fixed; inset: 0; pointer-events: none;
+      opacity: 0; z-index: 5;
+      background: radial-gradient(ellipse at 50% 40%,
+        rgba(255,215,0,0.95) 0%, rgba(255,160,0,0.7) 35%, transparent 70%);
+      mix-blend-mode: screen;
+    }
+    #lane-split-warning {
+      position: fixed; top: 36%; left: 50%;
+      transform: translate(-50%,-50%);
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1rem, 3.5vw, 1.8rem);
+      color: #FFD700; font-weight: 700;
+      text-shadow: 0 0 30px rgba(255,215,0,0.9), 0 2px 10px #000;
+      opacity: 0; pointer-events: none;
+      z-index: 200; white-space: nowrap;
+    }
+    .score-popup {
+      position: fixed; font-family: 'Cinzel Decorative', serif;
+      font-size: 1.3rem; color: #FFD700; font-weight: 900;
+      text-shadow: 0 0 12px rgba(255,215,0,0.9), 0 2px 6px #000;
+      pointer-events: none; z-index: 300;
+    }
+
+    /* ─── TOKENS ────────────────────────────────────────────────── */
+    :root {
+      --gold: #F4C430;
+      --gold-bright: #FFD700;
+      --saffron: #FF6B35;
+      --saffron-deep: #E85A1F;
+      --cream: #FFF8E1;
+      --dark: #0D0B1E;
+      --dark2: #14112A;
+      --glass: rgba(255,255,255,0.06);
+      --glass-border: rgba(255,215,0,0.18);
+      --glass-border-bright: rgba(255,215,0,0.55);
+      --blur: blur(20px) saturate(180%);
+      --shadow-gold: 0 0 60px rgba(244,196,48,0.35);
+      --shadow-card: 0 8px 40px rgba(0,0,0,0.6);
+    }
+
+    /* ─── BUTTONS ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 0.4rem; padding: 0.9rem 2.2rem;
+      border: none; border-radius: 60px;
+      font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.5px;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+      position: relative; overflow: hidden; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0); border-radius: inherit;
+      transition: background 0.15s;
+    }
+    .btn:hover::before { background: rgba(255,255,255,0.1); }
+    .btn:hover { transform: translateY(-3px); }
+    .btn:active { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--saffron) 0%, var(--gold) 60%, #FFE066 100%);
+      color: #1a0800; font-weight: 800;
+      box-shadow: 0 4px 24px rgba(255,107,53,0.5), 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .btn-primary:hover { box-shadow: 0 8px 36px rgba(255,107,53,0.7), 0 4px 16px rgba(0,0,0,0.5); }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.07);
+      color: var(--gold);
+      border: 1.5px solid rgba(255,215,0,0.3);
+    }
+    .btn-ghost:hover { border-color: var(--gold-bright); background: rgba(255,215,0,0.12); }
+
+    .btn-danger {
+      background: rgba(200,50,50,0.15);
+      color: #ff8080;
+      border: 1.5px solid rgba(200,80,80,0.35);
+    }
+
+    /* ─── SCREEN: LOADING ───────────────────────────────────────── */
+    #screen-loading {
+      background: radial-gradient(ellipse at 50% 40%, #200E00 0%, #0D0B1E 70%);
+      z-index: 999;
+    }
+    .load-om {
+      font-size: 5rem; margin-bottom: 0.5rem;
+      animation: om-pulse 2s ease-in-out infinite;
+    }
+    @keyframes om-pulse {
+      0%,100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(255,215,0,0.3)); }
+      50%      { transform: scale(1.08); filter: drop-shadow(0 0 40px rgba(255,215,0,0.7)); }
+    }
+    .load-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.8rem, 5vw, 3.5rem);
+      color: var(--gold-bright); font-weight: 900;
+      text-shadow: var(--shadow-gold);
+      text-align: center; margin-bottom: 0.3rem;
+    }
+    .load-sub {
+      color: var(--saffron); font-size: clamp(0.8rem, 2vw, 1.1rem);
+      letter-spacing: 4px; text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+    .load-bar-wrap {
+      width: min(320px, 80vw); height: 5px;
+      background: rgba(255,215,0,0.1);
+      border-radius: 99px; overflow: hidden;
+    }
+    .load-bar {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--saffron), var(--gold-bright));
+      border-radius: 99px;
+      transition: width 0.25s ease;
+      box-shadow: 0 0 10px rgba(255,215,0,0.6);
+    }
+
+    /* ─── SCREEN: MENU ──────────────────────────────────────────── */
+    #screen-menu {
+      background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(255,107,53,0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 80% 80% at 50% 110%, rgba(100,0,180,0.2) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(13,11,30,0.97) 0%, rgba(13,11,30,0.99) 100%);
+    }
+    .menu-logo-wrap { text-align: center; margin-bottom: 3rem; }
+    .menu-om { font-size: 4rem; display: block; margin-bottom: 0.5rem;
+      animation: om-pulse 3s ease-in-out infinite; }
+    .menu-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2rem, 7vw, 4.5rem);
+      font-weight: 900; color: var(--gold-bright);
+      display: block; line-height: 1;
+      text-shadow: 0 0 80px rgba(255,215,0,0.6), 0 4px 30px rgba(0,0,0,0.9);
+      animation: title-glow 4s ease-in-out infinite;
+    }
+    @keyframes title-glow {
+      0%,100% { text-shadow: 0 0 50px rgba(255,215,0,0.5), 0 4px 30px rgba(0,0,0,0.9); }
+      50%      { text-shadow: 0 0 100px rgba(255,215,0,0.9), 0 0 40px rgba(255,107,53,0.4), 0 4px 30px rgba(0,0,0,0.9); }
+    }
+    .menu-tagline {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(0.75rem, 2vw, 1.1rem);
+      color: var(--saffron); letter-spacing: 4px;
+      display: block; margin-top: 0.6rem;
+    }
+    .menu-score-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2);
+      border-radius: 99px; padding: 0.35rem 1rem;
+      color: var(--cream); font-size: 0.85rem; margin-top: 1rem;
+    }
+    .menu-score-badge strong { color: var(--gold-bright); font-weight: 700; }
+    .menu-btns {
+      display: flex; flex-direction: column;
+      gap: 0.85rem; width: min(300px, 90vw);
+    }
+    .menu-btns .btn { width: 100%; font-size: 1rem; }
+
+    /* Decorative floating petals on menu */
+    .menu-petal {
+      position: absolute; pointer-events: none;
+      width: 12px; height: 12px; border-radius: 50% 50% 50% 0;
+      opacity: 0; animation: petal-fall linear infinite;
+    }
+    @keyframes petal-fall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 0.8; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ─── SCREEN: HOW TO PLAY ───────────────────────────────────── */
+    #screen-howtoplay {
+      background: rgba(13,11,30,0.97);
+      backdrop-filter: var(--blur);
+    }
+    .howto-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem; max-width: 640px; width: 90vw;
+      margin: 1.5rem 0 2rem;
+    }
+    @media(max-width:500px) { .howto-grid { grid-template-columns: repeat(2,1fr); } }
+    .howto-card {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1rem 0.8rem; text-align: center;
+      backdrop-filter: var(--blur);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .howto-card:hover { border-color: var(--glass-border-bright); transform: translateY(-2px); }
+    .howto-card .hc-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+    .howto-card .hc-title { font-weight: 700; color: var(--gold); font-size: 0.85rem; display: block; }
+    .howto-card .hc-desc  { font-size: 0.7rem; color: var(--cream); opacity: 0.65; margin-top: 0.3rem; line-height: 1.4; }
+
+    /* ─── SCREEN: DIFFICULTY ────────────────────────────────────── */
+    #screen-difficulty {
+      background: rgba(13,11,30,0.97);
+      backdrop-filter: var(--blur);
+    }
+    .diff-cards {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+      justify-content: center; margin: 1.5rem 0 2rem;
+    }
+    .diff-card {
+      width: 160px; padding: 1.8rem 1rem;
+      border-radius: 20px; text-align: center; cursor: pointer;
+      background: var(--glass); border: 2px solid rgba(255,215,0,0.12);
+      backdrop-filter: var(--blur); box-shadow: var(--shadow-card);
+      transition: all 0.25s ease; position: relative; overflow: hidden;
+    }
+    .diff-card::before {
+      content: ''; position: absolute; inset: 0; border-radius: inherit;
+      background: radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.08), transparent 70%);
+      opacity: 0; transition: opacity 0.25s;
+    }
+    .diff-card:hover, .diff-card.selected { border-color: var(--gold); transform: translateY(-6px) scale(1.02); box-shadow: 0 16px 40px rgba(244,196,48,0.2); }
+    .diff-card:hover::before, .diff-card.selected::before { opacity: 1; }
+    .diff-card .dc-emoji { font-size: 2.8rem; display: block; margin-bottom: 0.6rem; }
+    .diff-card .dc-name  { font-weight: 800; color: var(--gold-bright); font-size: 1.05rem; display: block; margin-bottom: 0.4rem; }
+    .diff-card .dc-desc  { font-size: 0.72rem; color: var(--cream); opacity: 0.7; line-height: 1.4; }
+    .diff-row { display: flex; gap: 0.8rem; width: min(340px, 90vw); }
+    .diff-row .btn { flex: 1; }
+    @media(max-width:500px) { .diff-cards { flex-direction:column; align-items:center; } .diff-card { width: min(280px, 90vw); } }
+
+    /* ─── SCREEN TITLE ──────────────────────────────────────────── */
+    .screen-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.4rem, 4vw, 2.2rem);
+      color: var(--gold-bright); font-weight: 900;
+      text-shadow: 0 0 30px rgba(255,215,0,0.4), 0 2px 8px rgba(0,0,0,0.8);
+      text-align: center; margin-bottom: 0.5rem;
+    }
+    .screen-sub {
+      color: rgba(255,248,225,0.55); font-size: 0.85rem;
+      margin-bottom: 0.5rem; text-align: center;
+    }
+
+    /* ─── SCREEN: HUD ───────────────────────────────────────────── */
+    #screen-hud {
+      background: transparent;
+      z-index: 50; pointer-events: none;
+    }
+    .hud-top {
+      position: absolute; top: 0; left: 0; right: 0;
+      padding: 1rem 1.2rem;
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    /* Glass HUD panel */
+    .hud-panel {
+      background: rgba(0,0,0,0.55); backdrop-filter: var(--blur);
+      border: 1px solid rgba(255,215,0,0.15);
+      border-radius: 16px; padding: 0.6rem 1rem;
+    }
+    .hud-label { font-size: 0.6rem; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }
+    .hud-val   { font-family: 'Cinzel Decorative', serif; font-size: 1.4rem; color: #fff; line-height: 1; }
+    .hud-dist  { font-size: 0.78rem; color: var(--saffron); margin-top: 0.1rem; }
+
+    .hud-center { position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); pointer-events: none; }
+    .hud-biome-tag {
+      background: rgba(0,0,0,0.6); backdrop-filter: var(--blur);
+      border: 1px solid rgba(255,215,0,0.15); border-radius: 99px;
+      padding: 0.35rem 1.1rem; font-size: 0.8rem; color: var(--gold);
+      letter-spacing: 1px; white-space: nowrap;
+    }
+
+    .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.55rem; }
+    .hud-lives {
+      background: rgba(0,0,0,0.55); backdrop-filter: var(--blur);
+      border: 1px solid rgba(255,215,0,0.15); border-radius: 14px;
+      padding: 0.45rem 0.8rem; font-size: 1.1rem; letter-spacing: 4px;
+    }
+    .hud-lives span { opacity: 0.18; transition: opacity 0.3s; }
+    .hud-lives span.alive { opacity: 1; }
+
+    #btn-pause {
+      pointer-events: all; background: rgba(0,0,0,0.55);
+      backdrop-filter: var(--blur); color: var(--gold);
+      border: 1px solid rgba(255,215,0,0.2); border-radius: 12px;
+      padding: 0.4rem 0.9rem; cursor: pointer; font-family: 'Poppins',sans-serif;
+      font-size: 0.85rem; font-weight: 600; transition: all 0.15s;
+    }
+    #btn-pause:hover { background: rgba(255,215,0,0.1); border-color: var(--gold); }
+
+    /* Devotion meter */
+    .devotion-wrap {
+      position: absolute; bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: min(400px, 92vw); padding: 0 0 1.4rem; text-align: center;
+    }
+    .devotion-label {
+      font-size: 0.65rem; color: var(--gold); text-transform: uppercase;
+      letter-spacing: 2.5px; opacity: 0.9; margin-bottom: 0.4rem;
+    }
+    .devotion-track {
+      height: 8px; background: rgba(255,255,255,0.08);
+      border-radius: 99px; overflow: hidden;
+      border: 1px solid rgba(255,215,0,0.15);
+    }
+    .devotion-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--saffron), var(--gold-bright), #fffbe0);
+      border-radius: 99px; transition: width 0.3s ease;
+      box-shadow: 0 0 12px rgba(255,215,0,0.5);
+    }
+
+    /* ─── SCREEN: PAUSE ─────────────────────────────────────────── */
+    #screen-pause {
+      background: rgba(0,0,0,0.82);
+      backdrop-filter: var(--blur);
+    }
+    .pause-icon { font-size: 4rem; margin-bottom: 0.5rem; }
+    .pause-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2rem,5vw,3rem);
+      color: var(--gold-bright); margin-bottom: 2rem;
+      text-shadow: var(--shadow-gold);
+    }
+    #screen-pause .menu-btns { width: min(260px,90vw); }
+
+    /* ─── SCREEN: BOSS ──────────────────────────────────────────── */
+    #screen-boss { background: transparent; z-index: 50; pointer-events: none; }
+    #btn-boss-skip {
+      position: absolute; bottom: 2rem; right: 2rem;
+      background: rgba(0,0,0,0.6); color: rgba(255,248,225,0.8);
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 99px;
+      padding: 0.5rem 1.2rem; cursor: pointer; font-size: 0.82rem;
+      font-family: 'Poppins',sans-serif; pointer-events: all;
+      transition: all 0.2s;
+    }
+    #btn-boss-skip:hover { background: rgba(255,215,0,0.15); color: var(--gold); }
+
+    /* ─── RESULT SCREENS ────────────────────────────────────────── */
+    #screen-victory {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 30%, rgba(255,215,0,0.18), transparent 60%),
+        rgba(13,11,30,0.96);
+      backdrop-filter: var(--blur);
+    }
+    #screen-gameover {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 30%, rgba(200,100,0,0.15), transparent 60%),
+        rgba(13,11,30,0.96);
+      backdrop-filter: var(--blur);
+    }
+    .result-emoji { font-size: 4rem; margin-bottom: 0.5rem; }
+    .result-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.8rem, 6vw, 3.5rem); font-weight: 900;
+      text-align: center; margin-bottom: 0.4rem;
+    }
+    #screen-victory  .result-title { color: var(--gold-bright); text-shadow: 0 0 60px rgba(255,215,0,0.6); }
+    #screen-gameover .result-title { color: var(--saffron); }
+    .result-sub { color: rgba(255,248,225,0.65); font-size: 0.88rem; text-align: center; max-width: 380px; margin-bottom: 2rem; line-height: 1.5; }
+
+    .result-score-banner {
+      width: min(380px, 92vw);
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.14), rgba(255, 107, 0, 0.12));
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      border-radius: 18px;
+      padding: 0.8rem 1.2rem;
+      text-align: center;
+      margin-bottom: 0.8rem;
+      backdrop-filter: var(--blur);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+    .result-score-banner .stat-cell-label {
+      font-size: 0.72rem; color: var(--gold-bright); font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    }
+    .result-score-banner .stat-cell-val {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2rem, 5.5vw, 2.7rem);
+      color: #FFF8E1;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+      margin: 0.1rem 0;
+    }
+
+    .result-grid {
+      display: grid; grid-template-columns: repeat(2,1fr);
+      gap: 0.7rem; width: min(380px,92vw); margin-bottom: 1.8rem;
+    }
+    .stat-cell {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 0.85rem; text-align: center;
+      backdrop-filter: var(--blur);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .stat-cell:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255,215,0,0.4);
+    }
+    .stat-cell-label { font-size: 0.68rem; color: var(--gold); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
+    .stat-cell-val   { font-family: 'Cinzel Decorative', serif; font-size: 1.55rem; color: #fff; margin: 0.2rem 0; }
+    .stat-cell-sub   { font-size: 0.68rem; color: var(--saffron); font-weight: 500; }
+
+    .new-best {
+      display: inline-block; background: linear-gradient(135deg,var(--saffron),var(--gold));
+      color: #1a0800; font-size: 0.65rem; font-weight: 800;
+      padding: 0.15rem 0.55rem; border-radius: 99px; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .btn-pulse {
+      box-shadow: 0 0 20px rgba(255,107,0,0.6);
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 18px rgba(255, 107, 0, 0.6); transform: scale(1); }
+      50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.85); transform: scale(1.02); }
+    }
+    .result-btns { display: flex; gap: 0.8rem; width: min(380px,92vw); }
+    .result-btns .btn { flex: 1; }
+
+    /* ─── SCREEN: SETTINGS ──────────────────────────────────────── */
+    #screen-settings {
+      background: rgba(13,11,30,0.97);
+      backdrop-filter: var(--blur);
+    }
+    .settings-list {
+      width: min(340px,90vw); display: flex; flex-direction: column;
+      gap: 0.9rem; margin: 1.5rem 0 2rem;
+    }
+    .setting-row {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 1rem 1.2rem;
+      backdrop-filter: var(--blur);
+    }
+    .setting-lbl { color: var(--cream); font-weight: 600; font-size: 0.95rem; }
+    .toggle {
+      width: 52px; height: 28px; border-radius: 99px; border: none;
+      cursor: pointer; position: relative; transition: background 0.25s;
+      flex-shrink: 0;
+    }
+    .toggle.on  { background: linear-gradient(135deg,var(--saffron),var(--gold)); }
+    .toggle.off { background: rgba(255,255,255,0.2); }
+    .toggle-knob {
+      position: absolute; top: 3px; width: 22px; height: 22px;
+      border-radius: 50%; background: #fff;
+      transition: left 0.25s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .toggle.on  .toggle-knob { left: 27px; }
+    .toggle.off .toggle-knob { left: 3px; }
+
+    /* ─── SEPARATOR LINE ────────────────────────────────────────── */
+    .divider {
+      width: 120px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,215,0,0.4), transparent);
+      margin: 0.8rem auto;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="divine-light-overlay"></div>
+  <div id="lane-split-warning">⚡ CHOOSE YOUR PATH! ⚡</div>
+
+  <!-- ── LOADING ─────────────────────────────────────────────────── -->
+  <div id="screen-loading" class="screen">
+    <div class="load-om">🕉️</div>
+    <div class="load-title">Mushak Ki Daud</div>
+    <div class="load-sub">Vighnaharta Rising</div>
+    <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  </div>
+
+  <!-- ── MAIN MENU ──────────────────────────────────────────────── -->
+  <div id="screen-menu" class="screen">
+    <div class="menu-logo-wrap">
+      <span class="menu-om">🐭</span>
+      <span class="menu-title">Mushak Ki Daud</span>
+      <div class="divider"></div>
+      <span class="menu-tagline">Vighnaharta Rising</span>
+      <div class="menu-score-badge">🏆 Best: <strong id="menu-best">0</strong></div>
+    </div>
+    <div class="menu-btns">
+      <button class="btn btn-primary"  id="btn-play">▶ &nbsp;Play Now</button>
+      <button class="btn btn-ghost"    id="btn-howtoplay">📖 &nbsp;How To Play</button>
+      <button class="btn btn-ghost"    id="btn-settings">⚙️ &nbsp;Settings</button>
+    </div>
+  </div>
+
+  <!-- ── HOW TO PLAY ─────────────────────────────────────────────── -->
+  <div id="screen-howtoplay" class="screen">
+    <div class="screen-title">How To Play</div>
+    <div class="screen-sub">Guide Mushak to Sri Ganapathi's divine presence</div>
+    <div class="howto-grid">
+      <div class="howto-card">
+        <span class="hc-icon">⬅️➡️</span>
+        <span class="hc-title">Lane Switch</span>
+        <span class="hc-desc">Arrows / WASD or swipe left/right</span>
+      </div>
+      <div class="howto-card">
+        <span class="hc-icon">⬆️</span>
+        <span class="hc-title">Jump</span>
+        <span class="hc-desc">Up arrow / W or swipe up</span>
+      </div>
+      <div class="howto-card">
+        <span class="hc-icon">⬇️</span>
+        <span class="hc-title">Slide</span>
+        <span class="hc-desc">Down arrow / S or swipe down</span>
+      </div>
+      <div class="howto-card">
+        <span class="hc-icon">🍬</span>
+        <span class="hc-title">Collect</span>
+        <span class="hc-desc">Grab modaks &amp; ladoos to fill the devotion meter</span>
+      </div>
+      <div class="howto-card">
+        <span class="hc-icon">🚧</span>
+        <span class="hc-title">Dodge</span>
+        <span class="hc-desc">Avoid demon obstacles. 3 lives!</span>
+      </div>
+      <div class="howto-card">
+        <span class="hc-icon">🙏</span>
+        <span class="hc-title">Goal</span>
+        <span class="hc-desc">Reach Sri Ganapathi for His divine blessing!</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-htp-back" style="min-width:180px">Got it! ✓</button>
+  </div>
+
+  <!-- ── DIFFICULTY SELECT ──────────────────────────────────────── -->
+  <div id="screen-difficulty" class="screen">
+    <div class="screen-title">Choose Your Path</div>
+    <div class="screen-sub">How devoted are you?</div>
+    <div class="diff-cards">
+      <div class="diff-card selected" data-diff="easy">
+        <span class="dc-emoji">🌸</span>
+        <span class="dc-name">Easy</span>
+        <span class="dc-desc">Relaxed pace, forgiving obstacles. Perfect for beginners!</span>
+      </div>
+      <div class="diff-card" data-diff="normal">
+        <span class="dc-emoji">⚡</span>
+        <span class="dc-name">Normal</span>
+        <span class="dc-desc">Balanced challenge — the true devotee's path.</span>
+      </div>
+      <div class="diff-card" data-diff="hard">
+        <span class="dc-emoji">🔥</span>
+        <span class="dc-name">Hard</span>
+        <span class="dc-desc">Fast &amp; dense — only the most devoted survive!</span>
+      </div>
+    </div>
+    <div class="diff-row">
+      <button class="btn btn-ghost"    id="btn-diff-back">← Back</button>
+      <button class="btn btn-primary"  id="btn-diff-start">Begin Journey →</button>
+    </div>
+  </div>
+
+  <!-- ── HUD ────────────────────────────────────────────────────── -->
+  <div id="screen-hud" class="screen">
+    <div class="hud-top">
+      <div class="hud-panel">
+        <div class="hud-label">Score</div>
+        <div class="hud-val"  id="hud-score">0</div>
+        <div class="hud-dist" id="hud-dist">0m</div>
+      </div>
+      <div class="hud-center">
+        <div class="hud-biome-tag" id="hud-biome">🏔️ Himalaya</div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-lives" id="hud-lives">
+          <span class="alive">🐭</span><span class="alive">🐭</span><span class="alive">🐭</span>
+        </div>
+        <button id="btn-pause">⏸ Pause</button>
+      </div>
+    </div>
+    <div class="devotion-wrap">
+      <div class="devotion-label">✨ Devotion to Ganapathi ✨</div>
+      <div class="devotion-track">
+        <div class="devotion-fill" id="devotion-fill"></div>
+      </div>
+    <div id="lane-split-warning" style="display:none; position:absolute; top:30%; left:50%; transform:translate(-50%, -50%); text-align:center; pointer-events:none; z-index:60; width:min(600px, 94vw);">
+      <div style="font-family:'Cinzel Decorative', serif; font-size:clamp(1.4rem, 3.8vw, 2.4rem); color:#FFD700; text-shadow:0 0 20px #FF9900, 0 0 40px #FF5500; font-weight:900; letter-spacing:2px; margin-bottom:0.4rem;">
+        ⚡ TEMPLE RAILS: CHOOSE YOUR ROUTE! ⚡
+      </div>
+      <div style="font-family:'Poppins', sans-serif; font-size:0.92rem; color:#FFF8E1; text-shadow:0 2px 8px #000; font-weight:600; background:rgba(0,0,0,0.65); padding:0.45rem 1.2rem; border-radius:99px; border:1px solid rgba(255,215,0,0.4); display:inline-block;">
+        🛒 Hop On Trolley! &nbsp;|&nbsp; ⬅️ ➡️ Switch Tracks &nbsp;|&nbsp; ⬆️ Jump Fire &nbsp;|&nbsp; ⬇️ Slide Under Blocks
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PAUSE ─────────────────────────────────────────────────── -->
+  <div id="screen-pause" class="screen">
+    <div class="pause-icon">⏸</div>
+    <div class="pause-title">Game Paused</div>
+    <div class="menu-btns">
+      <button class="btn btn-primary" id="btn-resume">▶ Resume</button>
+      <button class="btn btn-ghost"   id="btn-restart">↺ Restart</button>
+      <button class="btn btn-danger"  id="btn-quit">✕ Quit to Menu</button>
+    </div>
+  </div>
+
+  <!-- ── BOSS FINALE ────────────────────────────────────────────── -->
+  <div id="screen-boss" class="screen">
+    <button id="btn-boss-skip">Skip ⏭</button>
+  </div>
+
+  <!-- ── VICTORY ────────────────────────────────────────────────── -->
+  <div id="screen-victory" class="screen">
+    <div class="result-emoji">🙏</div>
+    <div class="result-title">Jai Ganapathi!</div>
+    <div class="result-sub">Mushak has reached Sri Ganapathi's divine presence!<br>May His blessings be with you always. 🕉️</div>
+
+    <div class="result-score-banner">
+      <div class="stat-cell-label">Total Score</div>
+      <div class="stat-cell-val" id="v-score">0</div>
+      <div class="stat-cell-sub" id="v-best-badge"></div>
+    </div>
+
+    <div class="result-grid">
+      <div class="stat-cell">
+        <div class="stat-cell-label">🏃 Total Miles</div>
+        <div class="stat-cell-val" id="v-miles">0.00 mi</div>
+        <div class="stat-cell-sub" id="v-dist-sub">0m distance</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">⚡ Total XP</div>
+        <div class="stat-cell-val" id="v-xp" style="color:var(--gold-bright);">+0 XP</div>
+        <div class="stat-cell-sub" id="v-xp-rank">Novice Runner</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">🟡 Ladoos</div>
+        <div class="stat-cell-val" id="v-ladoos">0</div>
+        <div class="stat-cell-sub">Prasad Collected</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">🍬 Modaks</div>
+        <div class="stat-cell-val" id="v-modaks">0</div>
+        <div class="stat-cell-sub">Divine Sweets</div>
+      </div>
+    </div>
+    <div class="result-btns">
+      <button class="btn btn-primary btn-pulse" id="btn-v-again">↺ Restart Run</button>
+      <button class="btn btn-ghost"   id="btn-v-menu">🏠 Main Menu</button>
+    </div>
+  </div>
+
+  <!-- ── GAME OVER ───────────────────────────────────────────────── -->
+  <div id="screen-gameover" class="screen">
+    <div class="result-emoji">💫</div>
+    <div class="result-title">Run Complete</div>
+    <div class="result-sub">May Ganapathi's blessings guide your next journey! 🙏</div>
+
+    <div class="result-score-banner">
+      <div class="stat-cell-label">Total Score</div>
+      <div class="stat-cell-val" id="go-score">0</div>
+      <div class="stat-cell-sub" id="go-best-badge"></div>
+    </div>
+
+    <div class="result-grid">
+      <div class="stat-cell">
+        <div class="stat-cell-label">🏃 Total Miles</div>
+        <div class="stat-cell-val" id="go-miles">0.00 mi</div>
+        <div class="stat-cell-sub" id="go-dist-sub">0m distance</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">⚡ Total XP</div>
+        <div class="stat-cell-val" id="go-xp" style="color:var(--gold-bright);">+0 XP</div>
+        <div class="stat-cell-sub" id="go-xp-rank">Novice Runner</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">🟡 Ladoos</div>
+        <div class="stat-cell-val" id="go-ladoos">0</div>
+        <div class="stat-cell-sub">Prasad Collected</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">🍬 Modaks</div>
+        <div class="stat-cell-val" id="go-modaks">0</div>
+        <div class="stat-cell-sub">Divine Sweets</div>
+      </div>
+    </div>
+    <div class="result-btns">
+      <button class="btn btn-primary btn-pulse" id="btn-go-again">↺ Restart Run</button>
+      <button class="btn btn-ghost"   id="btn-go-menu">🏠 Main Menu</button>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS ───────────────────────────────────────────────── -->
+  <div id="screen-settings" class="screen">
+    <div class="screen-title">Settings</div>
+    <div class="settings-list">
+      <div class="setting-row">
+        <span class="setting-lbl">🔊 Sound Effects</span>
+        <button class="toggle on" id="toggle-sound"><div class="toggle-knob"></div></button>
+      </div>
+      <div class="setting-row">
+        <span class="setting-lbl">🎵 Music</span>
+        <button class="toggle on" id="toggle-music"><div class="toggle-knob"></div></button>
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="btn-settings-back" style="min-width:180px">← Back</button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

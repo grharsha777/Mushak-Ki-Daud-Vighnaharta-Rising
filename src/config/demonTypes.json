@@ -1,0 +1,32 @@
+[
+  {
+    "id": "impling",
+    "color": "#44BB44",
+    "behavior": "throwObstacle",
+    "spawnLane": "random",
+    "cooldown": 3.0,
+    "throwSpeed": 12,
+    "scale": 0.9,
+    "description": "A goofy little green imp who likes throwing rocks"
+  },
+  {
+    "id": "bumbler",
+    "color": "#8844CC",
+    "behavior": "throwObstacle",
+    "spawnLane": "opposite",
+    "cooldown": 3.5,
+    "throwSpeed": 10,
+    "scale": 1.1,
+    "description": "A clumsy purple demon who stumbles but still throws things"
+  },
+  {
+    "id": "prankster",
+    "color": "#CC6622",
+    "behavior": "fireBurst",
+    "spawnLane": "center",
+    "cooldown": 4.0,
+    "throwSpeed": 14,
+    "scale": 0.85,
+    "description": "An orange trickster who breathes little fire puffs"
+  }
+]

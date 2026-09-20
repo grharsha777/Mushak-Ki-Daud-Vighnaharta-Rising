@@ -1,0 +1,13 @@
+{
+  "totalDuration": 7.0,
+  "steps": [
+    { "t": 0.0,  "action": "stopRunning",          "desc": "Mushak slows to a halt" },
+    { "t": 0.5,  "action": "cameraPullBack",        "desc": "Camera zooms out to reveal the divine site" },
+    { "t": 1.5,  "action": "ganapathiFadeIn",       "desc": "Ganapathi materializes in golden light" },
+    { "t": 2.5,  "action": "divineLightBurst",      "desc": "Radiant light burst from Ganapathi" },
+    { "t": 3.5,  "action": "demonsDispelParticles", "desc": "Demons dissolve in harmless sparkles" },
+    { "t": 5.0,  "action": "mushakoBelow",          "desc": "Mushak bows reverently" },
+    { "t": 6.0,  "action": "screenFadeGold",        "desc": "Screen fades to warm golden light" },
+    { "t": 7.0,  "action": "transitionToVictoryScreen", "desc": "Victory screen appears" }
+  ]
+}
