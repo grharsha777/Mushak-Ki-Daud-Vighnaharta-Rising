@@ -184,7 +184,22 @@ export class BossSequenceController {
     this._active = false;
     setTimeout(() => {
       if (this._divineLightEl) gsap.set(this._divineLightEl, { opacity: 0 });
-      this._onVictory?.();
+      
+      const video = document.getElementById('cinematic-video');
+      if (video) {
+        video.style.display = 'block';
+        video.play().catch(e => {
+            console.error("Video play failed", e);
+            video.style.display = 'none';
+            this._onVictory?.();
+        });
+        video.onended = () => {
+            video.style.display = 'none';
+            this._onVictory?.();
+        };
+      } else {
+        this._onVictory?.();
+      }
     }, 300);
   }
 

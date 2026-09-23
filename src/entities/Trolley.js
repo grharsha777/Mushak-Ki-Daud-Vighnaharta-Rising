@@ -191,35 +191,42 @@ export class Trolley {
     this.active = true;
     this.mesh.visible = true;
     this.mushakRef = mushak;
+    this._mounting = true;
 
     // Position trolley at Mushak's lane
     this.mesh.position.copy(mushak.mesh.position);
     this.mesh.position.y = 0;
 
-    // Animate Mushak boarding the trolley (y increased due to scale)
+    // Animate Mushak boarding the trolley smoothly
     gsap.to(mushak.mesh.position, {
       y: 1.0,
       duration: 0.35,
       ease: 'power2.out',
+      onComplete: () => {
+        this._mounting = false;
+      }
     });
   }
 
   /** Dismount Mushak and hide trolley */
   dismount() {
-    this.active = false;
+    this._dismounting = true;
     if (this.mushakRef) {
       gsap.to(this.mushakRef.mesh.position, {
-        y: 0,
-        duration: 0.3,
+        y: 0.1, // Ground level
+        duration: 0.35,
         ease: 'power2.in',
       });
     }
     gsap.to(this.mesh.position, {
-      z: this.mesh.position.z - 20,
+      z: this.mesh.position.z - 30, // Drop behind
       opacity: 0,
-      duration: 0.5,
+      duration: 0.6,
       onComplete: () => {
+        this.active = false;
         this.mesh.visible = false;
+        this._dismounting = false;
+        this.mushakRef = null;
       }
     });
   }
@@ -312,10 +319,10 @@ export class Trolley {
     this.cartBody.rotation.z = this.tiltAngle;
 
     // Follow Mushak along Z
-    if (this.mushakRef) {
+    if (this.mushakRef && !this._dismounting) {
       this.mesh.position.z = this.mushakRef.mesh.position.z;
-      // Keep Mushak inside the cart
-      if (!this.isSliding) {
+      // Keep Mushak inside the cart once mounted
+      if (!this.isSliding && !this._mounting) {
         this.mushakRef.mesh.position.y = this.mesh.position.y + 1.0;
         this.mushakRef.mesh.rotation.z = this.tiltAngle * 0.7;
       }

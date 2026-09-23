@@ -1,0 +1,1 @@
+const fs = require('fs'); const data = fs.readFileSync('public/models/mushak_optimized.glb'); const str = data.toString('utf8'); const m = str.match(/"name":"([^"]+)"/g); if (m) { console.log(m.filter(x => x.toLowerCase().includes('bone') || x.toLowerCase().includes('head') || x.toLowerCase().includes('spine')).join(', ')); }

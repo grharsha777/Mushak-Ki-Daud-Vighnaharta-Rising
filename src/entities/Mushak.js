@@ -113,8 +113,30 @@ export class Mushak {
       this.vastraGroup.position.set(0, 0.25 * (1/scale), 0);
 
       // Attach Accessories to Bones
-      const headBone = model.getObjectByName('head_0164') || model.getObjectByName('head') || model;
-      const spineBone = model.getObjectByName('DEF-spine.004_05') || model.getObjectByName('spine') || model;
+      let headBone = model.getObjectByName('head_0164') || model.getObjectByName('head');
+      let spineBone = model.getObjectByName('DEF-spine.004_05') || model.getObjectByName('spine');
+
+      if (!headBone || !spineBone) {
+        model.traverse((child) => {
+          if (child.isBone) {
+            const name = child.name.toLowerCase();
+            if (!headBone && name.includes('head')) headBone = child;
+            if (!spineBone && (name.includes('spine') || name.includes('chest') || name.includes('back') || name.includes('torso') || name.includes('body') || name.includes('pelvis') || name.includes('root'))) spineBone = child;
+          }
+        });
+        
+        // Final fallback: if no spine bone is found by name, just pick any bone that isn't the head
+        if (!spineBone) {
+          model.traverse((child) => {
+            if (child.isBone && child !== headBone && !spineBone) {
+              spineBone = child;
+            }
+          });
+        }
+      }
+      headBone = headBone || model;
+      spineBone = spineBone || model;
+
       const earL = model.getObjectByName('ear.L_017');
       const earR = model.getObjectByName('ear.R_014');
 
@@ -177,16 +199,15 @@ export class Mushak {
     this.mukutGroup.rotation.x = -0.2;
 
     // ── Royal Vastra (Red + Gold Draped Robe / Saddle Cloth) ──
-    // Main red cloth — NO castShadow to prevent red shadow underneath
     const clothMat = new THREE.MeshStandardMaterial({
-      color: 0xB71C1C, roughness: 0.85, metalness: 0.05,
+      color: 0xFFD700, roughness: 0.2, metalness: 0.8, skinning: true,
       side: THREE.DoubleSide
     });
     this.vastraGroup = new THREE.Group();
     
     // Instead of a flat plane, make it a little curved saddle cloth (half cylinder)
     const vastraMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.35, 0.5, 16, 1, true, 0, Math.PI), 
+      new THREE.CylinderGeometry(0.3, 0.35, 0.5, 16, 1, true, Math.PI, Math.PI), 
       clothMat
     );
     // Rotate to fit over the back
@@ -203,7 +224,7 @@ export class Mushak {
       side: THREE.DoubleSide
     });
     const border = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.32, 0.37, 0.52, 16, 1, true, 0, Math.PI), 
+      new THREE.CylinderGeometry(0.32, 0.37, 0.52, 16, 1, true, Math.PI, Math.PI), 
       zariMat
     );
     border.rotation.z = Math.PI / 2;

@@ -124,61 +124,161 @@ export function makeSnowyMountainScene(scale = 1) {
   return group;
 }
 
-function loadTreeModel() {
-  if (cachedTreeModel) return;
-  if (isLoadingTree) return;
-  isLoadingTree = true;
-  const loader = new GLTFLoader();
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-  loader.setDRACOLoader(dracoLoader);
-  
-  loader.load('/models/plants_draco.glb', (gltf) => {
-    cachedTreeModel = gltf.scene;
-    // Apply highly optimized green material to all plants
-    const leafMat = std(0x2E6B44, 0.9, 0.0);
-    cachedTreeModel.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        child.material = leafMat;
-      }
-    });
+// ── Shared Materials for Procedural Flora ──
+const trunkMat = std(0x5C4033, 0.9);
+const pineMat  = std(0x2E4A35, 0.8);
+const snowMat  = std(0xFFFAFA, 0.5);
+const jungleMat1 = std(0x2d5a27, 0.8);
+const jungleMat2 = std(0x1e4620, 0.9);
+const palmTrunkMat = std(0x8B7355, 0.9);
 
-    // Populate any trees that were requested while loading
-    pendingTrees.forEach(({ group, scale, addSnow }) => {
-      populateTreeGroup(group, scale, addSnow);
-    });
-    pendingTrees.length = 0;
-  });
+/** Helper: stacked cone pine tree */
+function build3DPineTree(scale = 1) {
+  const group = new THREE.Group();
+  
+  // Trunk
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * scale, 0.5 * scale, 3 * scale, 5), trunkMat);
+  trunk.position.y = 1.5 * scale;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // 3 stacked cones for foliage
+  for (let i = 0; i < 3; i++) {
+    const h = (4 - i * 0.8) * scale;
+    const r = (2.5 - i * 0.5) * scale;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), pineMat);
+    cone.position.y = (3 + i * 2.5) * scale;
+    cone.castShadow = true;
+    
+    // Add snow cap
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.8, h * 0.6, 6), snowMat);
+    cap.position.y = cone.position.y + h * 0.25;
+    group.add(cone, cap);
+  }
+  
+  return group;
 }
 
-function populateTreeGroup(group, scale, addSnow = false) {
-  // Remove placeholders
-  for (let i = group.children.length - 1; i >= 0; i--) {
-    if (group.children[i].userData.isPlaceholder) {
-      group.remove(group.children[i]);
-    }
+/** Helper: lush, clean, clustered jungle tree */
+function build3DJungleTree(scale = 1, isBanyan = false) {
+  const group = new THREE.Group();
+  
+  // Trunk: nicely tapered
+  const trunkR = isBanyan ? 0.6 : 0.35;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.6 * scale, trunkR * scale, 5 * scale, 6), trunkMat);
+  trunk.position.y = 2.5 * scale;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // Canopy: A clean cluster of spheres instead of one jagged icosahedron
+  const canopyGroup = new THREE.Group();
+  canopyGroup.position.y = 5 * scale; // Exactly at the top of the trunk
+  
+  const canopyGeo = new THREE.SphereGeometry(1, 8, 8); // Smoother geometry
+  const mat = isBanyan ? jungleMat2 : jungleMat1;
+
+  // Center large foliage puff
+  const centerPuff = new THREE.Mesh(canopyGeo, mat);
+  const r = isBanyan ? 3.0 : 2.2;
+  centerPuff.scale.set(r * scale, (r * 0.8) * scale, r * scale);
+  centerPuff.castShadow = true;
+  canopyGroup.add(centerPuff);
+
+  // Smaller surrounding puffs for a classic organic tree shape
+  const puffCount = isBanyan ? 6 : 4;
+  for (let i = 0; i < puffCount; i++) {
+    const puff = new THREE.Mesh(canopyGeo, mat);
+    const pr = r * (0.6 + Math.random() * 0.3);
+    const angle = (i / puffCount) * Math.PI * 2;
+    const dist = r * 0.6;
+    puff.scale.set(pr * scale, pr * 0.8 * scale, pr * scale);
+    puff.position.set(
+      Math.cos(angle) * dist * scale,
+      (Math.random() - 0.2) * 0.5 * scale,
+      Math.sin(angle) * dist * scale
+    );
+    puff.castShadow = true;
+    canopyGroup.add(puff);
   }
 
-  const availablePlants = cachedTreeModel.children.filter(c => c.isMesh || c.children.length > 0);
-  if (availablePlants.length > 0) {
-    const randomPlant = availablePlants[Math.floor(Math.random() * availablePlants.length)].clone();
-    randomPlant.position.set(0, 0, 0);
-    const baseScale = 0.08 * scale; // adjust scale factor
-    randomPlant.scale.set(baseScale, baseScale, baseScale);
+  canopyGroup.rotation.y = Math.random() * Math.PI;
+  group.add(canopyGroup);
+
+  return group;
+}
+
+/** Helper: neat curved palm tree */
+function build3DPalmTree(scale = 1) {
+  const group = new THREE.Group();
+  
+  // Create a sub-group for the entire tree so we can curve it together
+  const treeBody = new THREE.Group();
+  
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * scale, 0.3 * scale, 6 * scale, 5), palmTrunkMat);
+  trunk.position.y = 3 * scale;
+  trunk.castShadow = true;
+  treeBody.add(trunk);
+
+  // Neatly attached Palm Leaves at the exact top center of the trunk
+  const topY = 6 * scale;
+  for (let i = 0; i < 6; i++) {
+    const leafGeo = new THREE.ConeGeometry(0.7 * scale, 3.5 * scale, 4);
+    const leaf = new THREE.Mesh(leafGeo, jungleMat1);
     
-    if (addSnow) {
-      // Add snow clumps for Himalaya specifically
-      const snowGeo = new THREE.IcosahedronGeometry(1.5 * scale, 1);
-      const snowMat = new THREE.MeshStandardMaterial({ color: 0xF4F9FF, roughness: 0.5, transparent: true, opacity: 0.85 });
-      const snow = new THREE.Mesh(snowGeo, snowMat);
-      snow.position.y = 2.0 * scale; 
-      randomPlant.add(snow);
-    }
+    // Create a pivot exactly at the top of the trunk
+    const pivot = new THREE.Group();
+    pivot.position.set(0, topY - 0.2 * scale, 0); // slightly embedded into the trunk top
     
-    group.add(randomPlant);
+    // Shift the leaf so it grows outward from the pivot
+    // Using z instead of y to avoid shifting the leaf UP before it gets rotated, which causes the floating gap.
+    leaf.position.set(0, 0, 1.75 * scale);
+    leaf.rotation.x = -Math.PI / 2; // flatten it outwards
+    
+    pivot.add(leaf);
+    pivot.rotation.y = (i / 6) * Math.PI * 2; // fan them out radially
+    pivot.rotation.x = 0.6; // arch them downwards neatly
+    treeBody.add(pivot);
   }
+
+  // Now apply the slight curve to the entire tree, ensuring leaves stay attached
+  treeBody.rotation.z = 0.15; 
+  group.add(treeBody);
+
+  return group;
+}
+
+// ── Clouds & Birds ──
+export function makeCloud() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 1.0, flatShading: true, transparent: true, opacity: 0.85 });
+  
+  for (let i = 0; i < 4; i++) {
+    const r = 2 + Math.random() * 2;
+    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), mat);
+    mesh.position.set((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 3);
+    group.add(mesh);
+  }
+  return group;
+}
+
+export function makeBird() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide });
+  
+  // V-shape bird
+  const wing1 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.4), mat);
+  wing1.position.set(0.6, 0, 0);
+  wing1.rotation.x = -Math.PI / 2;
+  wing1.rotation.y = -0.3;
+  
+  const wing2 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.4), mat);
+  wing2.position.set(-0.6, 0, 0);
+  wing2.rotation.x = -Math.PI / 2;
+  wing2.rotation.y = 0.3;
+
+  group.add(wing1, wing2);
+  group.userData = { wing1, wing2, time: Math.random() * 10 };
+  return group;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -242,23 +342,8 @@ export function makeSnowPeak(scale = 1) {
 }
 
 /** Realistic Pine/Spruce tree with dense foliage layers from asset pack */
-export function makePineTree(scale = 1) {
-  loadTreeModel();
-  const group = new THREE.Group();
-
-  if (cachedTreeModel) {
-    populateTreeGroup(group, scale, true);
-  } else {
-    // Add to pending array to be populated when loaded
-    pendingTrees.push({ group, scale, addSnow: true });
-    
-    // Add a temporary invisible loading placeholder
-    const placeholder = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.1), new THREE.MeshBasicMaterial({visible: false}));
-    placeholder.userData.isPlaceholder = true;
-    group.add(placeholder);
-  }
-
-  return group;
+export function makePineTree() {
+  return build3DPineTree(1.2);
 }
 
 /** Fluttering prayer flags strung between wooden sacred poles */
@@ -328,71 +413,17 @@ export function makeIceBlock() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /** Sprawling Banyan Tree with massive canopy & aerial roots */
-export function makeBanyanTree(scale = 1) {
-  const group = new THREE.Group();
-
-  // Central sturdy trunk
-  const trunkGeo = new THREE.CylinderGeometry(0.5 * scale, 0.8 * scale, 3.5 * scale, 6);
-  const trunk    = new THREE.Mesh(trunkGeo, std(0x4E3524, 0.9));
-  trunk.position.y = 1.75 * scale;
-  trunk.castShadow = true;
-  group.add(trunk);
-
-  // Aerial prop roots flanking
-  [[-0.8, 0.6], [0.8, 0.5], [-0.4, -0.7], [0.7, -0.6]].forEach(([rx, rz]) => {
-    const rootGeo = new THREE.CylinderGeometry(0.12 * scale, 0.18 * scale, 3.0 * scale, 5);
-    const root    = new THREE.Mesh(rootGeo, std(0x3D2818, 0.9));
-    root.position.set(rx * scale, 1.5 * scale, rz * scale);
-    root.rotation.z = rx * 0.15;
-    group.add(root);
-  });
-
-  // Massive leafy canopy (overlapping spheres for lush tropical feel)
-  const leafColors = [0x1E6B35, 0x2A8542, 0x389E50];
-  const canopyNodes = [
-    { x: 0, y: 4.2, z: 0, r: 2.2, c: leafColors[0] },
-    { x: -1.2, y: 3.8, z: 0.6, r: 1.6, c: leafColors[1] },
-    { x: 1.3, y: 3.9, z: -0.5, r: 1.7, c: leafColors[2] },
-    { x: 0.3, y: 4.8, z: 0.2, r: 1.4, c: 0x42B35E },
-  ];
-
-  canopyNodes.forEach(n => {
-    const geo  = new THREE.IcosahedronGeometry(n.r * scale, 1);
-    const mesh = new THREE.Mesh(geo, std(n.c, 0.8));
-    mesh.position.set(n.x * scale, n.y * scale, n.z * scale);
-    mesh.castShadow = true;
-    group.add(mesh);
-  });
-
-  return group;
+export function makeBanyanTree() {
+  return build3DJungleTree(1.4, true);
 }
 
 /** Towering curved Tropical Palm tree */
-export function makeTropicalPalm(scale = 1) {
-  const group = new THREE.Group();
+export function makeTropicalPalm() {
+  return build3DPalmTree(1.3);
+}
 
-  // Segmented curving trunk
-  for (let i = 0; i < 5; i++) {
-    const tGeo = new THREE.CylinderGeometry(0.24 * scale, 0.28 * scale, 0.9 * scale, 6);
-    const tSeg = new THREE.Mesh(tGeo, std(0x5C4028, 0.85));
-    tSeg.position.set(Math.sin(i * 0.25) * 0.4 * scale, (0.45 + i * 0.8) * scale, 0);
-    tSeg.rotation.z = -0.08 * i;
-    group.add(tSeg);
-  }
-
-  // Crown of arched palm fronds
-  const frondCount = 6;
-  for (let i = 0; i < frondCount; i++) {
-    const angle = (i / frondCount) * Math.PI * 2;
-    const fGeo  = new THREE.BoxGeometry(0.35 * scale, 0.08 * scale, 2.0 * scale);
-    const frond = new THREE.Mesh(fGeo, std(0x2E8B38, 0.75));
-    frond.position.set(0.7 * scale, 4.3 * scale, 0);
-    frond.rotation.y = angle;
-    frond.rotation.x = 0.45;
-    group.add(frond);
-  }
-
-  return group;
+export function makeJungleTree1() {
+  return build3DJungleTree(1.2, false);
 }
 
 /** Ancient carved stone temple torana / ruined gateway */
@@ -462,7 +493,7 @@ export function makeLotusFountain(scale = 1) {
 }
 
 export function makeJungleTree(scale = 1) {
-  return makeBanyanTree(scale);
+  return makeJungleTree1(scale);
 }
 
 export function makeStoneRuin(scale = 1) {
