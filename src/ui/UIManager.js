@@ -127,6 +127,13 @@ export class UIManager {
     if (badge) badge.innerHTML = isNewBest
       ? '<span class="new-best">🏆 NEW BEST!</span>'
       : `Best: ${Math.max(prevBest, session.score).toLocaleString()}`;
+      
+    // Devotion meter update
+    const devotionFill = document.getElementById('go-devotion-fill');
+    const devotionText = document.getElementById('go-devotion-text');
+    const devAmount = Math.min(100, Math.max(0, session.devotion || 0));
+    if (devotionFill) devotionFill.style.width = devAmount + '%';
+    if (devotionText) devotionText.textContent = Math.floor(devAmount) + '% Filled';
   }
 
   _getXPRank(xp) {
@@ -146,7 +153,7 @@ export class UIManager {
     gsap.fromTo(el,
       { opacity: 0, scale: 0.75 },
       { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.8)',
-        onComplete: () => gsap.to(el, { opacity: 0, duration: 0.6, delay: 3.5, onComplete: () => { el.style.display = 'none'; } }) }
+        onComplete: () => gsap.to(el, { opacity: 0, duration: 0.6, delay: 0, onComplete: () => { el.style.display = 'none'; } }) }
     );
   }
 

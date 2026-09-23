@@ -23,10 +23,11 @@ export class SceneManager {
     // ── Renderer ──────────────────────────────────────────────────
     this.renderer = new THREE.WebGLRenderer({
       canvas:    document.getElementById('game-canvas'),
-      antialias: true,
+      antialias: window.innerWidth > 768, // disable antialias on mobile for performance
       alpha:     false,
+      powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Capped at 1.5 for performance
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
@@ -37,7 +38,7 @@ export class SceneManager {
     // ── Scene ─────────────────────────────────────────────────────
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x8AB4F0);
-    this.scene.fog = new THREE.Fog(0x8AB4F0, 90, 320);
+    this.scene.fog = new THREE.FogExp2(0x8AB4F0, 0.0025);
 
     // ── Camera ────────────────────────────────────────────────────
     this.camera = new THREE.PerspectiveCamera(
@@ -198,8 +199,7 @@ export class SceneManager {
     this.scene.background?.set?.(cfg.skyColor ?? 0x8AB4F0);
     if (this.scene.fog) {
       this.scene.fog.color.set(cfg.fogColor ?? cfg.skyColor ?? 0x8AB4F0);
-      this.scene.fog.near = cfg.fogNear ?? 90;
-      this.scene.fog.far  = cfg.fogFar  ?? 320;
+      this.scene.fog.density = cfg.fogDensity ?? 0.0025;
     }
     if (cfg.groundColor && this.groundMat) this.groundMat.color.set(cfg.groundColor);
     if (cfg.trackColor && this.trackMat)   this.trackMat.color.set(cfg.trackColor);
@@ -231,7 +231,7 @@ export class SceneManager {
         duration: dur, ease: 'power2.inOut',
       });
       gsap.to(this.scene.fog, {
-        near: cfg.fogNear ?? 90, far: cfg.fogFar ?? 320,
+        density: cfg.fogDensity ?? 0.0025,
         duration: dur,
       });
     }

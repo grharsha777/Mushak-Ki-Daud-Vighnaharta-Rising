@@ -34,6 +34,7 @@
       align-items: center; justify-content: center;
       opacity: 0;
       z-index: 100;
+      overflow-y: auto; overflow-x: hidden;
     }
 
     /* ─── DIVINE OVERLAYS ───────────────────────────────────────── */
@@ -163,7 +164,7 @@
         radial-gradient(ellipse 80% 80% at 50% 110%, rgba(100,0,180,0.2) 0%, transparent 60%),
         linear-gradient(180deg, rgba(13,11,30,0.97) 0%, rgba(13,11,30,0.99) 100%);
     }
-    .menu-logo-wrap { text-align: center; margin-bottom: 3rem; }
+    .menu-logo-wrap { text-align: center; margin-bottom: clamp(1rem, 5vh, 3rem); padding-top: 2rem; }
     .menu-om { font-size: 4rem; display: block; margin-bottom: 0.5rem;
       animation: om-pulse 3s ease-in-out infinite; }
     .menu-title {
@@ -489,6 +490,7 @@
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
+  <video id="cinematic-video" src="/cinematic_fantasy_video_in_.mp4" playsinline style="display:none; position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; z-index:9000;"></video>
   <div id="divine-light-overlay"></div>
   <div id="lane-split-warning">⚡ CHOOSE YOUR PATH! ⚡</div>
 
@@ -613,7 +615,9 @@
         🛒 Hop On Trolley! &nbsp;|&nbsp; ⬅️ ➡️ Switch Tracks &nbsp;|&nbsp; ⬆️ Jump Fire &nbsp;|&nbsp; ⬇️ Slide Under Blocks
       </div>
     </div>
+    </div>
   </div>
+</div>
 
   <!-- ── PAUSE ─────────────────────────────────────────────────── -->
   <div id="screen-pause" class="screen">
@@ -703,6 +707,13 @@
         <div class="stat-cell-label">🍬 Modaks</div>
         <div class="stat-cell-val" id="go-modaks">0</div>
         <div class="stat-cell-sub">Divine Sweets</div>
+      </div>
+      <div class="stat-cell" style="grid-column: span 2;">
+        <div class="stat-cell-label">✨ Devotion</div>
+        <div class="devotion-track" style="margin-top:0.4rem; height:12px;">
+          <div class="devotion-fill" id="go-devotion-fill"></div>
+        </div>
+        <div class="stat-cell-sub" id="go-devotion-text" style="margin-top:0.4rem;">0% Filled</div>
       </div>
     </div>
     <div class="result-btns">

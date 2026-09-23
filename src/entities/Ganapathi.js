@@ -31,133 +31,107 @@ export class Ganapathi {
 
     this._pulseTime = 0;
   }
-
   _build() {
-    const gold     = new THREE.MeshStandardMaterial({ color: 0xFFD060, flatShading: true, roughness: 0.4, metalness: 0.3 });
-    const deepGold = new THREE.MeshStandardMaterial({ color: 0xCC9900, flatShading: true, roughness: 0.4, metalness: 0.4 });
-    const ivory    = new THREE.MeshStandardMaterial({ color: 0xFFFAE0, flatShading: true, roughness: 0.5, metalness: 0.0 });
-    const saffron  = new THREE.MeshStandardMaterial({ color: 0xFF8C00, flatShading: true, roughness: 0.65, metalness: 0.0 });
-    const red      = new THREE.MeshStandardMaterial({ color: 0xCC2200, flatShading: true, roughness: 0.7, metalness: 0.0 });
-
-    // ── Lotus Seat ────────────────────────────────────────────────
-    // Multi-layered lotus (stacked flattened cylinders)
-    const lotusColors = [0xFF6699, 0xFF99BB, 0xFFBBCC];
-    const lotusYs     = [0.05, 0.2, 0.32];
-    const lotusRadii  = [2.0, 1.6, 1.2];
-    lotusColors.forEach((col, i) => {
-      const geo  = new THREE.CylinderGeometry(lotusRadii[i], lotusRadii[i] + 0.2, 0.18, 12);
-      const mat  = new THREE.MeshLambertMaterial({ color: col, flatShading: true });
-      const petal = new THREE.Mesh(geo, mat);
-      petal.position.y = lotusYs[i];
-      this.mesh.add(petal);
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xFFD700, emissive: 0xCC8800, emissiveIntensity: 0.2,
+      metalness: 0.9, roughness: 0.2, flatShading: true
+    });
+    const lotusMat = new THREE.MeshStandardMaterial({
+      color: 0xFF69B4, emissive: 0xFF1493, emissiveIntensity: 0.4,
+      metalness: 0.1, roughness: 0.8, flatShading: true
     });
 
-    // ── Torso / Body ──────────────────────────────────────────────
-    // Seated, large rounded torso
-    const torsoGeo = new THREE.SphereGeometry(1.0, 7, 6);
-    const torso    = new THREE.Mesh(torsoGeo, gold);
-    torso.scale.set(1.2, 1.0, 0.85);
-    torso.position.y = 1.5;
-    torso.castShadow = true;
-    this.mesh.add(torso);
+    const bodyGroup = new THREE.Group();
 
-    // ── Dhoti (lower clothing) ────────────────────────────────────
-    const dhotiGeo = new THREE.CylinderGeometry(0.9, 1.1, 0.8, 8);
-    const dhoti    = new THREE.Mesh(dhotiGeo, saffron);
-    dhoti.position.y = 0.85;
-    this.mesh.add(dhoti);
+    // ── 1. Lotus Base ──
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const petal = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.5, 4), lotusMat);
+      petal.position.set(Math.cos(angle) * 1.2, 0, Math.sin(angle) * 1.2);
+      petal.rotation.z = Math.cos(angle) * 1.2;
+      petal.rotation.x = Math.sin(angle) * 1.2;
+      petal.rotation.y = -angle;
+      bodyGroup.add(petal);
+    }
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.2, 0.4, 16), goldMat);
+    bodyGroup.add(base);
 
-    // ── Elephant Head ─────────────────────────────────────────────
-    const headGeo = new THREE.SphereGeometry(0.78, 7, 6);
-    this.head     = new THREE.Mesh(headGeo, gold);
-    this.head.scale.set(1.1, 1.05, 0.95);
-    this.head.position.y = 2.85;
-    this.head.castShadow = true;
-    this.mesh.add(this.head);
+    // ── 2. Torso (Belly) ──
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), goldMat);
+    belly.scale.set(1, 0.9, 1);
+    belly.position.y = 1.2;
+    bodyGroup.add(belly);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 16), goldMat);
+    chest.position.y = 2.2;
+    bodyGroup.add(chest);
 
-    // ── Large Elephant Ears ───────────────────────────────────────
-    const earGeo = new THREE.SphereGeometry(0.62, 6, 5);
-    for (const side of [-1, 1]) {
-      const ear = new THREE.Mesh(earGeo, gold);
-      ear.scale.set(0.35, 0.7, 0.8);
-      ear.position.set(side * 0.88, 2.8, 0);
-      ear.rotation.z = side * 0.2;
-      this.mesh.add(ear);
+    // ── 3. Head & Trunk ──
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), goldMat);
+    head.position.y = 3.2;
+    bodyGroup.add(head);
+
+    // Curve trunk using multiple overlapping spheres
+    for (let i = 0; i < 8; i++) {
+      const trunkSeg = new THREE.Mesh(new THREE.SphereGeometry(0.3 - i*0.02, 12, 12), goldMat);
+      // Curve down and to the left (sweet tooth side)
+      trunkSeg.position.set(Math.sin(i*0.4)*0.2, 3.2 - i*0.25, 0.7 + Math.sin(i*0.3)*0.3);
+      bodyGroup.add(trunkSeg);
     }
 
-    // ── Trunk (curved — series of decreasing spheres) ──────────────
-    const trunkPoints = [
-      [0,  2.25, 0.7],
-      [0,  2.0,  0.9],
-      [0.15, 1.75, 0.95],
-      [0.3,  1.55, 0.85],
-      [0.35, 1.4,  0.7],
-    ];
-    trunkPoints.forEach(([x, y, z], i) => {
-      const r   = 0.2 - i * 0.025;
-      const geo = new THREE.SphereGeometry(Math.max(r, 0.08), 5, 4);
-      const seg = new THREE.Mesh(geo, deepGold);
-      seg.position.set(x, y, z);
-      this.mesh.add(seg);
-    });
+    // Big Ears
+    const earL = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.1, 16), goldMat);
+    earL.rotation.x = Math.PI / 2;
+    earL.rotation.y = -0.3;
+    earL.position.set(-1.0, 3.2, 0.2);
+    bodyGroup.add(earL);
+    
+    const earR = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.1, 16), goldMat);
+    earR.rotation.x = Math.PI / 2;
+    earR.rotation.y = 0.3;
+    earR.position.set(1.0, 3.2, 0.2);
+    bodyGroup.add(earR);
 
-    // ── Single Tusk (dignified — one tusk shown) ──────────────────
-    const tuskGeo = new THREE.ConeGeometry(0.08, 0.65, 5);
-    const tusk    = new THREE.Mesh(tuskGeo, ivory);
-    tusk.position.set(-0.3, 2.4, 0.72);
-    tusk.rotation.x =  0.6;
-    tusk.rotation.z = -0.2;
-    this.mesh.add(tusk);
+    // Crown (Mukut)
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.2, 8), goldMat);
+    crown.position.y = 4.3;
+    bodyGroup.add(crown);
 
-    // ── Crown (elaborate, layered cones) ──────────────────────────
-    const crownBase = new THREE.CylinderGeometry(0.55, 0.65, 0.22, 8);
-    const cb        = new THREE.Mesh(crownBase, deepGold);
-    cb.position.y   = 3.55;
-    this.mesh.add(cb);
+    // ── 4. Arms (4 Arms) ──
+    const armGeo = new THREE.CapsuleGeometry(0.25, 1.2, 4, 8);
+    // Back Left (holding axe/lotus)
+    const armBL = new THREE.Mesh(armGeo, goldMat);
+    armBL.rotation.z = Math.PI / 3;
+    armBL.position.set(-1.4, 2.6, -0.2);
+    bodyGroup.add(armBL);
+    // Back Right
+    const armBR = new THREE.Mesh(armGeo, goldMat);
+    armBR.rotation.z = -Math.PI / 3;
+    armBR.position.set(1.4, 2.6, -0.2);
+    bodyGroup.add(armBR);
+    // Front Left (Modak bowl)
+    const armFL = new THREE.Mesh(armGeo, goldMat);
+    armFL.rotation.x = -Math.PI / 3;
+    armFL.position.set(-0.9, 1.8, 0.8);
+    bodyGroup.add(armFL);
+    // Front Right (Blessing mudra)
+    const armFR = new THREE.Mesh(armGeo, goldMat);
+    armFR.rotation.x = -Math.PI / 3;
+    armFR.position.set(0.9, 1.8, 0.8);
+    bodyGroup.add(armFR);
 
-    const crownSpire = new THREE.ConeGeometry(0.35, 0.8, 8);
-    const cs         = new THREE.Mesh(crownSpire, gold);
-    cs.position.y    = 4.1;
-    this.mesh.add(cs);
+    // ── 5. Legs (Seated) ──
+    const legGeo = new THREE.CapsuleGeometry(0.35, 1.5, 8, 8);
+    const legL = new THREE.Mesh(legGeo, goldMat);
+    legL.rotation.z = Math.PI / 2;
+    legL.position.set(-0.8, 0.6, 0.8);
+    bodyGroup.add(legL);
+    const legR = new THREE.Mesh(legGeo, goldMat);
+    legR.rotation.z = -Math.PI / 2;
+    legR.position.set(0.8, 0.6, 0.8);
+    bodyGroup.add(legR);
 
-    // Crown jewels (small spheres)
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
-      const jewel = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 5, 4),
-        new THREE.MeshLambertMaterial({ color: 0xFF2244, flatShading: true })
-      );
-      jewel.position.set(
-        Math.cos(angle) * 0.55, 3.58,
-        Math.sin(angle) * 0.55
-      );
-      this.mesh.add(jewel);
-    }
-
-    // ── Four Arms (simplified — box sticks at cardinal angles) ────
-    const armPositions = [
-      { pos: [-1.1, 2.1, 0.2], rot: [0, 0,  0.6] },  // upper-left
-      { pos: [ 1.1, 2.1, 0.2], rot: [0, 0, -0.6] },  // upper-right
-      { pos: [-0.9, 1.4, 0.3], rot: [0, 0,  0.3] },  // lower-left
-      { pos: [ 0.9, 1.4, 0.3], rot: [0, 0, -0.3] },  // lower-right
-    ];
-    const armGeo = new THREE.BoxGeometry(0.22, 0.75, 0.22);
-    armPositions.forEach(({ pos, rot }) => {
-      const arm = new THREE.Mesh(armGeo, gold);
-      arm.position.set(...pos);
-      arm.rotation.set(...rot);
-      this.mesh.add(arm);
-    });
-
-    // ── Modak in hand (small, upper right arm) ────────────────────
-    const modakGeo = new THREE.SphereGeometry(0.2, 5, 4);
-    const modak    = new THREE.Mesh(modakGeo, saffron);
-    modak.scale.y  = 1.3;
-    modak.position.set(1.45, 2.6, 0.4);
-    this.mesh.add(modak);
-
-    // Scale up to be imposing but not overwhelming
-    this.mesh.scale.setScalar(1.6);
+    bodyGroup.position.y = 0;
+    this.mesh.add(bodyGroup);
   }
 
   /**

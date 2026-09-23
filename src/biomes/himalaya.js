@@ -6,40 +6,36 @@
  */
 
 import * as THREE from 'three';
-import { HimalayaBackground } from './HimalayaBackground.js';
-import { makePineTree } from '../entities/EnvironmentProps.js';
+import { makeSnowPeak, makePineTree, makePrayerFlags, makeIceStupa, makeIceBlock, makeCloud, makeBird } from '../entities/EnvironmentProps.js';
 
 // ── Biome Lighting Config ────────────────────────────────────────────────────
 export const HIMALAYA_CFG = {
-  skyColor:          0x8BA9D1,
-  fogColor:          0x97BEE8,
-  fogNear:           120,
-  fogFar:            500,
-  ambientColor:      0xE6F0FF,
-  ambientIntensity:  0.9,
+  skyColor:          0x8FB8D9,
+  fogColor:          0xC4D8E2,
+  fogNear:           80,
+  fogFar:            350,
+  ambientColor:      0xFFFFFF,
+  ambientIntensity:  0.8,
   sunColor:          0xFFFAEE,
-  sunIntensity:      2.1,
-  groundColor:       0xDBE7F5,
-  trackColor:        0x8E9CA6,
-  railColor:         0x9BBBD4,
+  sunIntensity:      2.2,
+  groundColor:       0xDBE5EC,
+  trackColor:        0x8C9AA3,
+  railColor:         0x6B7B87,
   lineColor:         0xFFFFFF,
-  lineEmissive:      0x88AAFF,
+  lineEmissive:      0x444444,
 };
 
-const PROP_INTERVAL  = 30; // foreground prop spacing
-const PROP_BUDGET    = 16; // max foreground side-props
+const PROP_INTERVAL  = 26; // foreground prop spacing
 
 export class HimalayaBiome {
-  constructor(scene) {
+  constructor(scene, pool) {
     this.scene          = scene;
+    this.pool           = pool;
     this.active         = false;
     this._props         = [];
+    this._skyProps      = [];
     this._nextZ         = -40;
     this._snowParticles = null;
-    this._propBudget    = PROP_BUDGET;
-
-    // Background system — pre-loads immediately on construction
-    this._bg = new HimalayaBackground(scene, 4);
   }
 
   get lightConfig() { return HIMALAYA_CFG; }
@@ -49,47 +45,83 @@ export class HimalayaBiome {
     this.addPropFn = addPropFn;
     this._nextZ    = -40;
     this._props    = [];
+    this._skyProps = [];
 
-    this._bg.activate();
     this._spawnInitialProps();
     this._createSnowParticles();
   }
 
   deactivate() {
     this.active = false;
-    this._bg.deactivate();
     this._disposeParticles();
     this._props.forEach(prop => {
-      this.scene.remove(prop);
-      prop.traverse(c => {
-        if (c.isMesh) { c.geometry?.dispose(); c.material?.dispose(); }
-      });
+      this.pool.release(prop.userData.poolType, prop);
+    });
+    this._skyProps.forEach(prop => {
+      this.pool.release(prop.userData.poolType, prop);
     });
     this._props = [];
+    this._skyProps = [];
   }
 
   _spawnInitialProps() {
-    for (let i = 0; i < 6; i++) {
-      this._spawnSideProps(-40 - i * PROP_INTERVAL);
+    for (let i = 0; i < 9; i++) {
+      this._spawnPropPair(-40 - i * PROP_INTERVAL);
     }
   }
 
-  /** Side-props: big pine trees beside the track — clean and neat */
-  _spawnSideProps(z) {
-    // Big pine trees on both sides — uniform and clean
-    const left  = makePineTree(3.5);  // big tree
-    const right = makePineTree(3.5);
+  _spawnPropPair(z) {
+    const r = Math.random();
+    let left, right;
 
-    left.position.set(-7.5, 0, z);
-    right.position.set(7.5, 0, z);
+    if (r < 0.25) {
+      left  = this.pool.get('snowPeak', () => makeSnowPeak());
+      right = this.pool.get('snowPeak', () => makeSnowPeak());
+      left.userData.poolType = 'snowPeak';
+      right.userData.poolType = 'snowPeak';
+      left.position.set(-28, 0, z);
+      right.position.set(28, 0, z);
+    } else if (r < 0.5) {
+      left  = this.pool.get('pineTree', () => makePineTree());
+      right = this.pool.get('pineTree', () => makePineTree());
+      left.userData.poolType = 'pineTree';
+      right.userData.poolType = 'pineTree';
+      left.position.set(-20, 0, z);
+      right.position.set(20, 0, z);
+    } else if (r < 0.75) {
+      left  = this.pool.get('prayerFlags', () => makePrayerFlags());
+      right = this.pool.get('prayerFlags', () => makePrayerFlags());
+      left.userData.poolType = 'prayerFlags';
+      right.userData.poolType = 'prayerFlags';
+      left.position.set(-18, 0, z);
+      right.position.set(18, 0, z);
+    } else {
+      left  = this.pool.get('iceStupa', () => makeIceStupa());
+      right = this.pool.get('iceStupa', () => makeIceStupa());
+      left.userData.poolType = 'iceStupa';
+      right.userData.poolType = 'iceStupa';
+      left.position.set(-18, 0, z);
+      right.position.set(18, 0, z);
+    }
 
-    // Slight variation in rotation for natural look but still neat
-    left.rotation.y  = Math.PI * 0.3;
-    right.rotation.y = -Math.PI * 0.3;
+    if (left.rotation.y === 0) left.rotation.y = Math.random() * Math.PI;
+    if (right.rotation.y === 0) right.rotation.y = Math.random() * Math.PI;
 
-    this.addPropFn(left);
-    this.addPropFn(right);
     this._props.push(left, right);
+
+    // Sky Elements (Clouds and Birds)
+    if (Math.random() < 0.4) {
+      const cloud = this.pool.get('cloud', () => makeCloud());
+      cloud.userData.poolType = 'cloud';
+      cloud.position.set((Math.random() - 0.5) * 80, 25 + Math.random() * 15, z - Math.random() * 20);
+      this._skyProps.push(cloud);
+    }
+    if (Math.random() < 0.3) {
+      const bird = this.pool.get('bird', () => makeBird());
+      bird.userData.poolType = 'bird';
+      bird.position.set((Math.random() - 0.5) * 40, 15 + Math.random() * 10, z - Math.random() * 10);
+      this._skyProps.push(bird);
+    }
 
     return [left, right];
   }
@@ -146,9 +178,6 @@ export class HimalayaBiome {
   update(delta, worldAmount) {
     if (!this.active) return;
 
-    // Feed scroll amount into the background tiling system
-    this._bg.update(worldAmount);
-
     // Snow particle drift
     if (this._snowParticles) {
       const pos = this._snowParticles.geometry.attributes.position;
@@ -169,22 +198,36 @@ export class HimalayaBiome {
       prop.position.z += worldAmount;
     });
 
-    // Recycle foreground props
     this._props = this._props.filter(prop => {
-      if (prop.position.z > 30) {
-        this.scene.remove(prop);
-        prop.traverse(c => {
-          if (c.isMesh) { c.geometry?.dispose(); c.material?.dispose(); }
-        });
+      if (prop.position.z > 28) {
+        this.pool.release(prop.userData.poolType, prop);
         return false;
       }
       return true;
     });
 
-    // Spawn new foreground props if needed
-    while (this._props.length < this._propBudget) {
-      this._spawnSideProps(this._nextZ);
-      this._nextZ -= PROP_INTERVAL;
+    // Scroll, animate, and recycle sky props
+    this._skyProps.forEach(prop => { 
+      prop.position.z += worldAmount; 
+      if (prop.userData.poolType === 'bird') {
+        prop.userData.time += delta * 15;
+        prop.userData.wing1.rotation.y = -0.3 + Math.sin(prop.userData.time) * 0.4;
+        prop.userData.wing2.rotation.y = 0.3 - Math.sin(prop.userData.time) * 0.4;
+        prop.position.x += Math.sin(prop.userData.time * 0.1) * delta * 2;
+      }
+    });
+    this._skyProps = this._skyProps.filter(prop => {
+      if (prop.position.z > 40) {
+        this.pool.release(prop.userData.poolType, prop);
+        return false;
+      }
+      return true;
+    });
+
+    // Spawn new props
+    const furthestZ = this._props.reduce((min, p) => Math.min(min, p.position.z), 0);
+    if (furthestZ > -180) {
+      this._spawnPropPair(furthestZ - PROP_INTERVAL);
     }
   }
 }

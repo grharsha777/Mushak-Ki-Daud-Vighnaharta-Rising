@@ -25,7 +25,7 @@ import { BossSequenceController }  from './gameplay/BossSequenceController.js';
 
 // Entities
 import { Mushak }     from './entities/Mushak.js';
-import { Demon  }     from './entities/Demon.js';
+import { Demon, loadGodzillaGLTF } from './entities/Demon.js';
 import { Trolley }    from './entities/Trolley.js';
 import { RailsTrack } from './entities/RailsTrack.js';
 
@@ -85,8 +85,8 @@ class MushakGame {
 
     // Biome instances (persist across sessions)
     this.biomes = {
-      himalaya: new HimalayaBiome(this.sceneMgr.scene),
-      jungle:   new JungleBiome(this.sceneMgr.scene),
+      himalaya: new HimalayaBiome(this.sceneMgr.scene, this.pool),
+      jungle:   new JungleBiome(this.sceneMgr.scene, this.pool),
     };
 
     // Gameplay entities (null until startGame)
@@ -132,17 +132,28 @@ class MushakGame {
     this.state = GS.MENU;
   }
 
-  _fakeLoad() {
+  async _fakeLoad() {
     const bar = document.getElementById('load-bar');
-    if (!bar) return Promise.resolve();
-    return new Promise(resolve => {
-      let p = 0;
-      const tick = setInterval(() => {
-        p = Math.min(100, p + Math.random() * 22 + 6);
-        bar.style.width = p + '%';
-        if (p >= 100) { clearInterval(tick); setTimeout(resolve, 300); }
-      }, 80);
-    });
+    if (bar) bar.style.width = '10%';
+
+    // Start preloading the massive Godzilla GLTF model
+    const godzillaPromise = loadGodzillaGLTF();
+    
+    // Simulate some other quick loading progress while we wait
+    let p = 10;
+    const tick = setInterval(() => {
+      if (p < 85) p += Math.random() * 5;
+      if (bar) bar.style.width = p + '%';
+    }, 150);
+
+    await godzillaPromise;
+    clearInterval(tick);
+    
+    if (bar) {
+      bar.style.width = '100%';
+      // Brief delay for the bar to show 100%
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
   // ── Game start ──────────────────────────────────────────────────────────────
@@ -341,6 +352,12 @@ class MushakGame {
       case GS.BOSS_SEQ:
         this._tickBoss(delta);
         break;
+      case GS.GAME_OVER:
+      case GS.VICTORY:
+        // Decelerate smoothly to a stop instead of instant freeze
+        this.session.gameSpeed = Math.max(0, this.session.gameSpeed - 30 * delta);
+        this._tickPlaying(delta, false); // false = ignore input
+        break;
       default:
         // MENU, PAUSED, etc. — still render the 3D background
         break;
@@ -350,12 +367,14 @@ class MushakGame {
   }
 
   // ── Playing tick ────────────────────────────────────────────────────────────
-  _tickPlaying(delta) {
+  _tickPlaying(delta, allowInput = true) {
     const s = this.session;
 
     // Advance distance & speed
     s.distance  += s.gameSpeed * delta;
-    s.gameSpeed += (this._diffMod?.speedInc ?? 0.015) * delta;
+    if (allowInput) {
+      s.gameSpeed += (this._diffMod?.speedInc ?? 0.015) * delta;
+    }
 
     // Biome transitions
     this._checkBiomeTransition(s.distance);
@@ -377,18 +396,15 @@ class MushakGame {
     }
 
     // Lane / jump / slide input
-    this.lanes?.update(delta, this.state);
-
-    // Pause shortcut
-    if (this.input.consume('pause')) { this.pause(); return; }
+    if (allowInput) {
+      this.lanes?.update(delta, this.state);
+      // Pause shortcut
+      if (this.input.consume('pause')) { this.pause(); return; }
+    }
 
     // Obstacles
     if (this.obstacles && this.mushak) {
-      // Reduce obstacle density heavily during the rails sequence
       const mod = { ...(this._diffMod ?? {}) };
-      if (this.state === GS.LANE_SPLIT) {
-        mod.spawnIntervalMult = (mod.spawnIntervalMult || 1) * 3.5; // Far fewer traps!
-      }
       this.obstacles.update(
         delta, s, mod,
         s.currentBiome, levelConfigRaw,
@@ -459,8 +475,8 @@ class MushakGame {
     const splitStart = levelConfigRaw.laneSplitDistance    ?? 800;
     const splitEnd   = splitStart + (levelConfigRaw.laneSplitDuration ?? 140);
 
-    // Show rails 80 units BEFORE the split so player sees them coming
-    const railsPreview = splitStart - 80;
+    // Show rails 25 units BEFORE the split so player sees them coming
+    const railsPreview = splitStart - 25;
     if (s.distance >= railsPreview && !this._railsShown) {
       this._railsShown = true;
       this.railsTrack?.activate();  // rails visible early

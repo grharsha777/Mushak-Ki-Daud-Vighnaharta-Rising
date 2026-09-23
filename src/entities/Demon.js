@@ -23,7 +23,7 @@ import { gsap } from 'gsap';
 let sharedGltf = null;
 let gltfLoadingPromise = null;
 
-function loadGodzillaGLTF() {
+export function loadGodzillaGLTF() {
   if (sharedGltf) return Promise.resolve(sharedGltf);
   if (gltfLoadingPromise) return gltfLoadingPromise;
 
